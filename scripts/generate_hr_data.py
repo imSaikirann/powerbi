@@ -11,8 +11,7 @@ from faker import Faker
 
 
 faker = Faker()
-random.seed(42)
-np.random.seed(42)
+RANDOM_SEED = 42
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 RAW_DATA_PATH = BASE_DIR / "data" / "raw" / "hr_employee_data_raw.csv"
@@ -263,6 +262,9 @@ def inject_realistic_quality_issues(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(record_count: int = 6000) -> None:
+    random.seed(RANDOM_SEED)
+    np.random.seed(RANDOM_SEED)
+    faker.seed_instance(RANDOM_SEED)
     rows = [generate_employee_row(employee_number=i) for i in range(1, record_count + 1)]
     hr_frame = pd.DataFrame(rows)
     dirty_hr_frame = inject_realistic_quality_issues(hr_frame)
