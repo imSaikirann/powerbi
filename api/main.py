@@ -75,6 +75,45 @@ def _build_visual_payload() -> dict[str, Any]:
         .reset_index(name="average_salary")
         .to_dict(orient="records")
     )
+    performance_by_department = (
+        frame.groupby("department")["performance_rating"]
+        .mean()
+        .round(2)
+        .sort_values(ascending=False)
+        .reset_index(name="average_performance")
+        .to_dict(orient="records")
+    )
+    performance_scatter = (
+        frame[
+            [
+                "employee_id",
+                "department",
+                "job_role",
+                "attendance_percentage",
+                "performance_rating",
+                "salary",
+            ]
+        ]
+        .sort_values(["department", "salary"], ascending=[True, False])
+        .groupby("department", group_keys=False)
+        .head(18)
+        .reset_index(drop=True)
+        .to_dict(orient="records")
+    )
+    performance_matrix = (
+        frame.groupby(["department", "job_role"], as_index=False)
+        .agg(
+            employee_count=("employee_id", "count"),
+            average_performance=("performance_rating", "mean"),
+            average_attendance=("attendance_percentage", "mean"),
+        )
+        .round({"average_performance": 2, "average_attendance": 2})
+        .sort_values(["department", "average_performance", "employee_count"], ascending=[True, False, False])
+        .groupby("department", group_keys=False)
+        .head(4)
+        .to_dict(orient="records")
+    )
+    top_performing_department = performance_by_department[0]["department"] if performance_by_department else "N/A"
 
     return {
         "kpis": {
@@ -84,6 +123,8 @@ def _build_visual_payload() -> dict[str, Any]:
             "attrition_rate": quality_report["attrition_rate_percent"],
             "average_attendance": quality_report["average_attendance_percent"],
             "roc_auc": model_report["roc_auc"],
+            "average_performance": round(float(frame["performance_rating"].mean()), 2),
+            "top_performing_department": top_performing_department,
         },
         "charts": {
             "department_counts": department_counts,
@@ -91,6 +132,9 @@ def _build_visual_payload() -> dict[str, Any]:
             "hiring_trend": hiring_trend,
             "attendance_by_department": attendance_by_department,
             "salary_by_department": salary_by_department,
+            "performance_by_department": performance_by_department,
+            "performance_scatter": performance_scatter,
+            "performance_matrix": performance_matrix,
         },
         "sample_rows": frame.head(10).to_dict(orient="records"),
     }
@@ -178,6 +222,27 @@ def home() -> str:
       font-weight: 600;
       color: var(--ink);
     }
+    .page-switcher {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    .page-chip {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.82);
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: none;
+    }
+    .page-chip.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -207,6 +272,13 @@ def home() -> str:
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 18px;
       margin-top: 24px;
+    }
+    .page {
+      display: none;
+      margin-top: 22px;
+    }
+    .page.active {
+      display: block;
     }
     .chart {
       margin-top: 14px;
@@ -239,6 +311,36 @@ def home() -> str:
       border-radius: 18px;
       border: 1px solid #eadfce;
     }
+    .scatter-wrap {
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .scatter-chart {
+      width: 100%;
+      height: 320px;
+      background: linear-gradient(180deg, #fcfaf6 0%, #f2ece3 100%);
+      border-radius: 18px;
+      border: 1px solid #eadfce;
+    }
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend-item {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -258,6 +360,7 @@ def home() -> str:
     @media (max-width: 700px) {
       .bar-row { grid-template-columns: 90px 1fr 46px; font-size: 12px; }
       .metric-value { font-size: 24px; }
+      .page-switcher { gap: 8px; }
     }
   </style>
 </head>
@@ -273,38 +376,71 @@ def home() -> str:
     </section>
 
     <section id="results" class="hidden">
-      <div id="kpiGrid" class="grid"></div>
-      <div class="panels">
-        <div class="panel">
-          <h2>Department Headcount</h2>
-          <p>Employee distribution after cleaning.</p>
-          <div id="departmentChart" class="chart"></div>
+      <div class="page-switcher">
+        <button type="button" class="page-chip active" data-page="overviewPage">Executive Overview</button>
+        <button type="button" class="page-chip" data-page="performancePage">Workforce Performance</button>
+      </div>
+
+      <div id="overviewPage" class="page active">
+        <div id="kpiGrid" class="grid"></div>
+        <div class="panels">
+          <div class="panel">
+            <h2>Department Headcount</h2>
+            <p>Employee distribution after cleaning.</p>
+            <div id="departmentChart" class="chart"></div>
+          </div>
+          <div class="panel">
+            <h2>Attrition Split</h2>
+            <p>Employees who stayed versus employees who left.</p>
+            <div id="attritionChart" class="chart"></div>
+          </div>
+          <div class="panel">
+            <h2>Monthly Hiring Trend</h2>
+            <p>Last 12 join-month counts from the cleaned data.</p>
+            <svg id="hiringLine" class="mini-line" viewBox="0 0 640 220" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="panel">
+            <h2>Average Attendance by Department</h2>
+            <p>Department-level attendance after imputation and cleaning.</p>
+            <div id="attendanceChart" class="chart"></div>
+          </div>
+          <div class="panel">
+            <h2>Average Salary by Department</h2>
+            <p>Department-wise average salary from the cleaned dataset.</p>
+            <div id="salaryChart" class="chart"></div>
+          </div>
+          <div class="panel">
+            <h2>Sample Cleaned Output</h2>
+            <p>Preview of the top rows that feed reporting and modeling.</p>
+            <div style="overflow:auto;">
+              <table id="sampleTable"></table>
+            </div>
+          </div>
         </div>
-        <div class="panel">
-          <h2>Attrition Split</h2>
-          <p>Employees who stayed versus employees who left.</p>
-          <div id="attritionChart" class="chart"></div>
-        </div>
-        <div class="panel">
-          <h2>Monthly Hiring Trend</h2>
-          <p>Last 12 join-month counts from the cleaned data.</p>
-          <svg id="hiringLine" class="mini-line" viewBox="0 0 640 220" preserveAspectRatio="none"></svg>
-        </div>
-        <div class="panel">
-          <h2>Average Attendance by Department</h2>
-          <p>Department-level attendance after imputation and cleaning.</p>
-          <div id="attendanceChart" class="chart"></div>
-        </div>
-        <div class="panel">
-          <h2>Average Salary by Department</h2>
-          <p>Department-wise average salary from the cleaned dataset.</p>
-          <div id="salaryChart" class="chart"></div>
-        </div>
-        <div class="panel">
-          <h2>Sample Cleaned Output</h2>
-          <p>Preview of the top rows that feed reporting and modeling.</p>
-          <div style="overflow:auto;">
-            <table id="sampleTable"></table>
+      </div>
+
+      <div id="performancePage" class="page">
+        <div id="performanceKpiGrid" class="grid"></div>
+        <div class="panels">
+          <div class="panel">
+            <h2>Department-Wise Performance</h2>
+            <p>Average performance rating across departments.</p>
+            <div id="performanceDepartmentChart" class="chart"></div>
+          </div>
+          <div class="panel">
+            <h2>Attendance vs Performance</h2>
+            <p>High-salary employees are shown with larger markers to highlight concentration by department.</p>
+            <div class="scatter-wrap">
+              <svg id="performanceScatter" class="scatter-chart" viewBox="0 0 640 320" preserveAspectRatio="none"></svg>
+            </div>
+            <div id="performanceLegend" class="legend"></div>
+          </div>
+          <div class="panel" style="grid-column: 1 / -1;">
+            <h2>Department and Role Matrix</h2>
+            <p>Top roles per department with employee count, average performance, and average attendance.</p>
+            <div style="overflow:auto;">
+              <table id="performanceMatrixTable"></table>
+            </div>
           </div>
         </div>
       </div>
@@ -315,6 +451,7 @@ def home() -> str:
     const runBtn = document.getElementById("runBtn");
     const statusEl = document.getElementById("status");
     const resultsEl = document.getElementById("results");
+    const pageChips = Array.from(document.querySelectorAll(".page-chip"));
 
     runBtn.addEventListener("click", async () => {
       runBtn.disabled = true;
@@ -333,14 +470,22 @@ def home() -> str:
       }
     });
 
+    pageChips.forEach((chip) => {
+      chip.addEventListener("click", () => setActivePage(chip.dataset.page));
+    });
+
     function render(payload) {
       renderKpis(payload.kpis);
       renderBars("departmentChart", payload.charts.department_counts, "department", "count");
       renderBars("attritionChart", payload.charts.attrition_split, "attrition", "count");
       renderBars("attendanceChart", payload.charts.attendance_by_department, "department", "average_attendance", "%");
       renderBars("salaryChart", payload.charts.salary_by_department, "department", "average_salary");
+      renderBars("performanceDepartmentChart", payload.charts.performance_by_department, "department", "average_performance");
       renderLine(payload.charts.hiring_trend);
       renderTable(payload.sample_rows);
+      renderPerformanceKpis(payload.kpis, payload.charts.performance_by_department);
+      renderScatter(payload.charts.performance_scatter);
+      renderPerformanceMatrix(payload.charts.performance_matrix);
     }
 
     function renderKpis(kpis) {
@@ -353,6 +498,23 @@ def home() -> str:
         ["ROC AUC", kpis.roc_auc]
       ];
       document.getElementById("kpiGrid").innerHTML = items.map(([label, value]) => `
+        <div class="card">
+          <div class="metric-label">${label}</div>
+          <div class="metric-value">${value}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderPerformanceKpis(kpis, performanceRows) {
+      const highestScore = performanceRows.length ? performanceRows[0].average_performance : 0;
+      const lowestScore = performanceRows.length ? performanceRows[performanceRows.length - 1].average_performance : 0;
+      const items = [
+        ["Average Performance", kpis.average_performance],
+        ["Top Department", kpis.top_performing_department],
+        ["Best Dept Score", highestScore],
+        ["Lowest Dept Score", lowestScore]
+      ];
+      document.getElementById("performanceKpiGrid").innerHTML = items.map(([label, value]) => `
         <div class="card">
           <div class="metric-label">${label}</div>
           <div class="metric-value">${value}</div>
@@ -407,6 +569,91 @@ def home() -> str:
       `;
     }
 
+    function renderScatter(rows) {
+      const svg = document.getElementById("performanceScatter");
+      const legend = document.getElementById("performanceLegend");
+      const width = 640;
+      const height = 320;
+      const padding = { top: 24, right: 24, bottom: 36, left: 52 };
+      const departments = [...new Set(rows.map(row => row.department))];
+      const palette = ["#0f766e", "#2563eb", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#4f46e5"];
+      const colors = Object.fromEntries(departments.map((department, index) => [department, palette[index % palette.length]]));
+      const xMin = 55;
+      const xMax = 100;
+      const yMin = 1;
+      const yMax = 5;
+      const salaryMax = Math.max(...rows.map(row => Number(row.salary) || 0), 1);
+      const xScale = (value) => padding.left + ((value - xMin) / (xMax - xMin)) * (width - padding.left - padding.right);
+      const yScale = (value) => height - padding.bottom - ((value - yMin) / (yMax - yMin)) * (height - padding.top - padding.bottom);
+
+      const gridLines = [60, 70, 80, 90, 100].map(value => `
+        <g>
+          <line x1="${xScale(value)}" y1="${padding.top}" x2="${xScale(value)}" y2="${height - padding.bottom}" stroke="#e4d9ca" stroke-dasharray="4 6"></line>
+          <text x="${xScale(value)}" y="${height - 12}" text-anchor="middle" fill="#667784" font-size="10">${value}%</text>
+        </g>
+      `).join("") + [1, 2, 3, 4, 5].map(value => `
+        <g>
+          <line x1="${padding.left}" y1="${yScale(value)}" x2="${width - padding.right}" y2="${yScale(value)}" stroke="#ece2d5" stroke-dasharray="4 6"></line>
+          <text x="${padding.left - 16}" y="${yScale(value) + 4}" text-anchor="end" fill="#667784" font-size="10">${value}</text>
+        </g>
+      `).join("");
+
+      const points = rows.map((row) => {
+        const radius = 4 + ((Number(row.salary) || 0) / salaryMax) * 8;
+        const x = xScale(Number(row.attendance_percentage) || xMin);
+        const y = yScale(Number(row.performance_rating) || yMin);
+        const title = `${row.job_role} (${row.department}) | Attendance: ${row.attendance_percentage}% | Performance: ${row.performance_rating} | Salary: ${formatValue(Number(row.salary) || 0)}`;
+        return `
+          <circle cx="${x}" cy="${y}" r="${radius}" fill="${colors[row.department]}" fill-opacity="0.72" stroke="white" stroke-width="1.5">
+            <title>${title}</title>
+          </circle>
+        `;
+      }).join("");
+
+      svg.innerHTML = `
+        ${gridLines}
+        <line x1="${padding.left}" y1="${height - padding.bottom}" x2="${width - padding.right}" y2="${height - padding.bottom}" stroke="#9eaab3"></line>
+        <line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}" stroke="#9eaab3"></line>
+        <text x="${width / 2}" y="${height - 2}" text-anchor="middle" fill="#667784" font-size="11">Attendance Percentage</text>
+        <text x="14" y="${height / 2}" text-anchor="middle" fill="#667784" font-size="11" transform="rotate(-90 14 ${height / 2})">Performance Rating</text>
+        ${points}
+      `;
+
+      legend.innerHTML = departments.map((department) => `
+        <span class="legend-item">
+          <span class="legend-swatch" style="background:${colors[department]}"></span>
+          <span>${department}</span>
+        </span>
+      `).join("");
+    }
+
+    function renderPerformanceMatrix(rows) {
+      const table = document.getElementById("performanceMatrixTable");
+      if (!rows.length) {
+        table.innerHTML = "<tr><td>No performance rows available.</td></tr>";
+        return;
+      }
+      const headHtml = `
+        <tr>
+          <th>Department</th>
+          <th>Job Role</th>
+          <th>Employees</th>
+          <th>Avg Performance</th>
+          <th>Avg Attendance</th>
+        </tr>
+      `;
+      const bodyHtml = rows.map((row) => `
+        <tr>
+          <td>${row.department}</td>
+          <td>${row.job_role}</td>
+          <td>${row.employee_count}</td>
+          <td>${row.average_performance}</td>
+          <td>${row.average_attendance}%</td>
+        </tr>
+      `).join("");
+      table.innerHTML = `<thead>${headHtml}</thead><tbody>${bodyHtml}</tbody>`;
+    }
+
     function renderTable(rows) {
       const table = document.getElementById("sampleTable");
       if (!rows.length) {
@@ -417,6 +664,15 @@ def home() -> str:
       const headHtml = `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`;
       const bodyHtml = rows.map(row => `<tr>${headers.map(h => `<td>${row[h] ?? ""}</td>`).join("")}</tr>`).join("");
       table.innerHTML = `<thead>${headHtml}</thead><tbody>${bodyHtml}</tbody>`;
+    }
+
+    function setActivePage(pageId) {
+      document.querySelectorAll(".page").forEach((page) => {
+        page.classList.toggle("active", page.id === pageId);
+      });
+      pageChips.forEach((chip) => {
+        chip.classList.toggle("active", chip.dataset.page === pageId);
+      });
     }
 
     function formatValue(value) {

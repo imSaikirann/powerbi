@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="950" viewBox="0 0 1600 950">
+  <defs>
+    <style>
+      .title { font: 700 34px 'Segoe UI', Arial, sans-serif; fill: #16324f; }
+      .subtitle { font: 500 18px 'Segoe UI', Arial, sans-serif; fill: #486581; }
+      .layer { stroke: #16324f; stroke-width: 2.5; rx: 18; ry: 18; }
+      .head { font: 700 24px 'Segoe UI', Arial, sans-serif; fill: #102a43; }
+      .body { font: 500 16px 'Segoe UI', Arial, sans-serif; fill: #243b53; }
+      .arrow { stroke: #16324f; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .note { font: 600 16px 'Segoe UI', Arial, sans-serif; fill: #334e68; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#16324f"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="950" fill="#f4f8fb"/>
+  <text x="800" y="60" text-anchor="middle" class="title">HR Analytics Dashboard System Architecture</text>
+  <text x="800" y="92" text-anchor="middle" class="subtitle">End-to-end pipeline from synthetic data generation to dashboard presentation</text>
+
+  <rect x="90" y="160" width="210" height="150" class="layer" fill="#d9f3e4"/>
+  <text x="195" y="205" text-anchor="middle" class="head">1. Data Creation</text>
+  <text x="195" y="240" text-anchor="middle" class="body">Synthetic HR dataset</text>
+  <text x="195" y="266" text-anchor="middle" class="body">Department, role, salary,</text>
+  <text x="195" y="290" text-anchor="middle" class="body">attendance, attrition</text>
+  <text x="195" y="328" text-anchor="middle" class="note">generate_hr_data.py</text>
+
+  <rect x="360" y="160" width="210" height="150" class="layer" fill="#fff4cc"/>
+  <text x="465" y="205" text-anchor="middle" class="head">2. Data Quality</text>
+  <text x="465" y="240" text-anchor="middle" class="body">Intentional nulls,</text>
+  <text x="465" y="266" text-anchor="middle" class="body">duplicates, formatting</text>
+  <text x="465" y="290" text-anchor="middle" class="body">noise for realism</text>
+  <text x="465" y="328" text-anchor="middle" class="note">quality injection logic</text>
+
+  <rect x="630" y="160" width="210" height="150" class="layer" fill="#d8ecff"/>
+  <text x="735" y="205" text-anchor="middle" class="head">3. Preprocessing</text>
+  <text x="735" y="240" text-anchor="middle" class="body">Deduplication, cleaning,</text>
+  <text x="735" y="266" text-anchor="middle" class="body">imputation, derived</text>
+  <text x="735" y="290" text-anchor="middle" class="body">reporting columns</text>
+  <text x="735" y="328" text-anchor="middle" class="note">clean_hr_data.py</text>
+
+  <rect x="900" y="160" width="210" height="150" class="layer" fill="#fde2e4"/>
+  <text x="1005" y="205" text-anchor="middle" class="head">4. Predictive Layer</text>
+  <text x="1005" y="240" text-anchor="middle" class="body">Logistic regression</text>
+  <text x="1005" y="266" text-anchor="middle" class="body">pipeline for attrition</text>
+  <text x="1005" y="290" text-anchor="middle" class="body">risk estimation</text>
+  <text x="1005" y="328" text-anchor="middle" class="note">train_attrition_model.py</text>
+
+  <rect x="1170" y="160" width="210" height="150" class="layer" fill="#eadcff"/>
+  <text x="1275" y="205" text-anchor="middle" class="head">5. Service Layer</text>
+  <text x="1275" y="240" text-anchor="middle" class="body">FastAPI endpoints</text>
+  <text x="1275" y="266" text-anchor="middle" class="body">KPIs, payloads, pipeline</text>
+  <text x="1275" y="290" text-anchor="middle" class="body">execution status</text>
+  <text x="1275" y="328" text-anchor="middle" class="note">api/main.py</text>
+
+  <rect x="690" y="430" width="240" height="170" class="layer" fill="#ffe7c2"/>
+  <text x="810" y="475" text-anchor="middle" class="head">6. Presentation Layer</text>
+  <text x="810" y="510" text-anchor="middle" class="body">Browser dashboard</text>
+  <text x="810" y="536" text-anchor="middle" class="body">Overview, Performance,</text>
+  <text x="810" y="562" text-anchor="middle" class="body">Data Quality, Final Output</text>
+  <text x="810" y="602" text-anchor="middle" class="note">HTML/CSS/JS in FastAPI</text>
+
+  <path d="M 300 235 L 360 235" class="arrow"/>
+  <path d="M 570 235 L 630 235" class="arrow"/>
+  <path d="M 840 235 L 900 235" class="arrow"/>
+  <path d="M 1110 235 L 1170 235" class="arrow"/>
+  <path d="M 1275 310 L 1275 380 L 930 380 L 930 430" class="arrow"/>
+
+  <rect x="120" y="690" width="1360" height="150" rx="18" ry="18" fill="#ffffff" stroke="#bcccdc" stroke-width="2"/>
+  <text x="800" y="735" text-anchor="middle" class="head">Stored Outputs and Reusable Artifacts</text>
+  <text x="800" y="770" text-anchor="middle" class="body">Raw CSV, cleaned CSV, quality report JSON, model report JSON, KPI payloads, chart-ready structures</text>
+  <text x="800" y="804" text-anchor="middle" class="body">These outputs support both academic documentation and operational dashboard review.</text>
+</svg>
